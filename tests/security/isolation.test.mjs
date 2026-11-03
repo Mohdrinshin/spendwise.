@@ -186,6 +186,25 @@ describe('multi-user data isolation', () => {
     assert.equal(data.length, 1);
   });
 
+  test('user A can update their own transaction', async () => {
+    const { data, error } = await A.client.from('transactions')
+      .update({ description: 'A salary (edited)' }).eq('id', A.tx.id).select();
+    assert.equal(error, null);
+    assert.equal(data.length, 1);
+    assert.equal(data[0].description, 'A salary (edited)');
+  });
+
+  test('user A can create and then delete their own transaction', async () => {
+    const created = await A.client.from('transactions').insert({
+      type: 'expense', amount: 4500, description: 'temp', date: today,
+    }).select().single();
+    assert.equal(created.error, null);
+    assert.equal(created.data.user_id, A.id);
+    const deleted = await A.client.from('transactions').delete().eq('id', created.data.id).select();
+    assert.equal(deleted.error, null);
+    assert.equal(deleted.data.length, 1);
+  });
+
   test('unauthenticated visitors cannot read financial data', async () => {
     const tx = await anon.from('transactions').select('*');
     const budgets = await anon.from('budgets').select('*');
